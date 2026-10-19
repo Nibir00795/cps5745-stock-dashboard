@@ -20,7 +20,6 @@ AUTHOR = "Md Jonayed Hossain Chowdhury"
 ROOT = Path(__file__).resolve().parent
 
 NAMES = {"NVDA": "NVIDIA", "AMD": "AMD", "INTC": "Intel", "TSM": "TSMC", "AVGO": "Broadcom", "QCOM": "Qualcomm"}
-ALL = list(NAMES)
 DEFAULT = ["NVDA", "AMD", "INTC"]
 # Colour follows the company, in a fixed order, never by rank (validated palette, slots 1 to 6).
 COLOR = {"NVDA": "#2a78d6", "AMD": "#eb6834", "INTC": "#1baf7a", "TSM": "#eda100", "AVGO": "#e87ba4", "QCOM": "#008300"}
@@ -29,6 +28,7 @@ NAVY, INK, MUTED, GRID = "#1f3a5f", "#1b1f24", "#5b6470", "#e8e8e3"
 FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 DF = M.load()
+ALL = [t for t in NAMES if t in set(DF["Ticker"])]  # only companies the data file actually has
 LAST = DF["Date"].max()
 FIRST = DF["Date"].min()
 SYNTHETIC = (ROOT / "data" / "SYNTHETIC").exists()
@@ -193,6 +193,21 @@ def kpi_cards(close):
     return cards
 
 
+def drawdown_finding(close, s, deep):
+    worst = -s["max_drawdown"] * 100
+    now = -M.drawdown(close).ffill().iloc[-1]
+    today = "; ".join(f"{t} {'at a new high' if now[t] < 0.5 else f'{now[t]:.0f}% below its high'}" for t in s.index)
+    if worst.max() - worst.min() < 5:
+        head = "All of them fell hard. "
+        body = (f"Each lost {worst.min():.0f}% to {worst.max():.0f}% from a peak at some point. "
+                f"Where they stand at the end of the range: {today} (drawdown chart).")
+    else:
+        head = f"Deepest fall: {NAMES[deep]}. "
+        body = (f"At its worst, {deep} sat {worst[deep]:.0f}% below its earlier peak. "
+                f"Where they stand at the end of the range: {today} (drawdown chart).")
+    return [html.B(head), body]
+
+
 def key_differences(close):
     """Plain-language findings for the current selection, computed from the same numbers the charts use."""
     s = M.summary(close)
@@ -214,9 +229,7 @@ def key_differences(close):
                         else "More risk did not mean more return. "),
                  f"{wild} was the most volatile ({s.loc[wild,'volatility']*100:.0f}% a year) and {calm} the calmest "
                  f"({s.loc[calm,'volatility']*100:.0f}%), as the risk versus return chart shows."]),
-        html.Li([html.B(f"Deepest fall: {NAMES[deep]}. "),
-                 f"At its worst, {deep} sat {abs(s.loc[deep,'max_drawdown'])*100:.0f}% below its earlier peak "
-                 "(drawdown chart)."]),
+        html.Li(drawdown_finding(close, s, deep)),
         html.Li([html.B("They tend to move together. " if lo[2] >= 0.5 else
                         "Some move together, some do not. " if hi[2] >= 0.5 else
                         "Their daily moves are only loosely related. "),
