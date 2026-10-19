@@ -1,0 +1,13 @@
+[project]
+name = "chip-stocks-compared"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dash==4.4.1",
+    "plotly==7.1.0",
+    "pandas==3.0.5",
+    "numpy==2.5.3",
+]
+
+[tool.vercel]
+entrypoint = "app:app"
